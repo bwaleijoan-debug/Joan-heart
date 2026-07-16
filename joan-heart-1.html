@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>for joan</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,600&family=Jost:wght@300;400;500&display=swap');
+
+  :root{
+    --bg-1:#241220;
+    --bg-2:#3a1a2e;
+    --pink:#ff6f91;
+    --gold:#ffd166;
+    --cream:#fdf3ea;
+    --dim:#c9a9b8;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0;
+    height:100%;
+    background: radial-gradient(ellipse at 50% 30%, var(--bg-2), var(--bg-1) 70%);
+    overflow:hidden;
+    font-family:'Jost', sans-serif;
+  }
+
+  canvas{
+    position:fixed;
+    inset:0;
+    display:block;
+  }
+
+  .stage{
+    position:relative;
+    width:100%;
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .caption{
+    position:absolute;
+    bottom:9%;
+    left:50%;
+    transform:translateX(-50%);
+    text-align:center;
+    color:var(--dim);
+    font-weight:300;
+    font-size:0.85rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    opacity:0;
+    animation: fadeIn 1.5s ease-out 3.4s forwards;
+    pointer-events:none;
+  }
+
+  .caption em{
+    font-family:'Playfair Display', serif;
+    font-style:italic;
+    color:var(--gold);
+    font-size:1rem;
+    letter-spacing:0.02em;
+  }
+
+  @keyframes fadeIn{
+    to{ opacity:0.9; }
+  }
+
+  .hint{
+    position:absolute;
+    top:6%;
+    left:50%;
+    transform:translateX(-50%);
+    color:var(--dim);
+    font-size:0.7rem;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    opacity:0;
+    animation: fadeIn 1.2s ease-out 4s forwards;
+    pointer-events:none;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .caption, .hint{ animation: none; opacity:0.9; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <canvas id="c"></canvas>
+  <div class="hint">tap anywhere ✦</div>
+  <div class="caption">a small heart, built letter by letter, for <em>joan</em></div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, DPR;
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * DPR;
+  canvas.height = H * DPR;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- build target points: heart outline/fill + "joan" letters ----------
+
+function heartPoint(t){
+  // parametric heart, t in [0, 2PI]
+  const x = 16 * Math.pow(Math.sin(t), 3);
+  const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+  return { x, y: -y };
+}
+
+function buildHeartTargets(count){
+  const pts = [];
+  // outline points
+  const outlineCount = Math.floor(count * 0.35);
+  for(let i=0;i<outlineCount;i++){
+    const t = (i/outlineCount) * Math.PI * 2;
+    const p = heartPoint(t);
+    pts.push(p);
+  }
+  // filled points via rejection sampling within heart curve bounding scaled shape
+  const fillCount = count - outlineCount;
+  let tries = 0;
+  while(pts.length < outlineCount + fillCount && tries < fillCount * 40){
+    tries++;
+    const rx = (Math.random()*2-1) * 18;
+    const ry = (Math.random()*2-1) * 17;
+    if(isInsideHeart(rx, -ry)){
+      pts.push({x:rx, y:ry});
+    }
+  }
+  return pts;
+}
+
+function isInsideHeart(x, y){
+  // implicit heart formula test (classic): (x^2+y^2-1)^3 - x^2*y^3 <=0 scaled
+  const sx = x/13, sy = y/13;
+  const v = Math.pow(sx*sx + sy*sy - 1, 3) - sx*sx*sy*sy*sy;
+  return v <= 0;
+}
+
+// letters "joan" using a temp canvas to sample pixel positions
+function buildTextTargets(text, count){
+  const tmp = document.createElement('canvas');
+  const size = 300;
+  tmp.width = size*4;
+  tmp.height = size;
+  const tctx = tmp.getContext('2d');
+  tctx.fillStyle = '#fff';
+  tctx.font = '600 160px "Playfair Display", serif';
+  tctx.textBaseline = 'middle';
+  tctx.textAlign = 'center';
+  tctx.fillText(text, tmp.width/2, tmp.height/2);
+  const data = tctx.getImageData(0,0,tmp.width,tmp.height).data;
+
+  const candidates = [];
+  const step = 2;
+  for(let y=0;y<tmp.height;y+=step){
+    for(let x=0;x<tmp.width;x+=step){
+      const idx = (y*tmp.width + x)*4;
+      if(data[idx+3] > 128){
+        candidates.push({
+          x: (x - tmp.width/2) / (tmp.width/2) * 24,
+          y: (y - tmp.height/2) / (tmp.height/2) * 6
+        });
+      }
+    }
+  }
+  // shuffle & sample
+  for(let i=candidates.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [candidates[i],candidates[j]] = [candidates[j],candidates[i]];
+  }
+  const pts = [];
+  for(let i=0;i<count;i++){
+    pts.push(candidates[i % candidates.length]);
+  }
+  return pts;
+}
+
+const PARTICLE_COUNT = reduceMotion ? 300 : 900;
+
+let heartTargets = buildHeartTargets(PARTICLE_COUNT);
+let textTargets = buildTextTargets('joan', PARTICLE_COUNT);
+
+// shuffle heart targets so assembly looks organic rather than ring-by-ring
+for(let i=heartTargets.length-1;i>0;i--){
+  const j = Math.floor(Math.random()*(i+1));
+  [heartTargets[i],heartTargets[j]] = [heartTargets[j],heartTargets[i]];
+}
+
+const palette = ['#ff6f91', '#ffd166', '#ff9ab0', '#ffe1a8', '#ff8fa3'];
+
+class Particle{
+  constructor(i){
+    const angle = Math.random()*Math.PI*2;
+    const radius = Math.max(W,H) * 0.8;
+    this.x = Math.cos(angle)*radius;
+    this.y = Math.sin(angle)*radius;
+    this.vx = 0; this.vy = 0;
+    this.size = 1.4 + Math.random()*1.8;
+    this.color = palette[i % palette.length];
+    this.heartTarget = heartTargets[i];
+    this.textTarget = textTargets[i];
+    this.mode = 'heart'; // 'heart' -> 'text' -> 'heart' loop after interactions
+    this.settled = false;
+    this.phase = Math.random()*Math.PI*2;
+  }
+}
+
+let particles = [];
+for(let i=0;i<PARTICLE_COUNT;i++) particles.push(new Particle(i));
+
+const scaleBase = () => Math.min(W, H) / 34;
+
+let startTime = performance.now();
+let beatTime = 0;
+let burstPulses = []; // for tap ripples: {x,y,start}
+
+function getTarget(p, cx, cy, scale, morphToText, t){
+  const src = morphToText ? p.textTarget : p.heartTarget;
+  return {
+    x: cx + src.x * scale,
+    y: cy + src.y * scale
+  };
+}
+
+function animate(now){
+  const elapsed = now - startTime;
+  ctx.clearRect(0,0,W,H);
+
+  const cx = W/2;
+  const cy = H/2 - H*0.02;
+  const scale = scaleBase();
+
+  // phases: 0-2.6s assemble into heart, then gentle heartbeat forever
+  const assembleDuration = 2600;
+  const assembleT = Math.min(1, elapsed/assembleDuration);
+  const eased = 1 - Math.pow(1-assembleT, 3);
+
+  beatTime = Math.max(0, elapsed - assembleDuration);
+  const beat = 1 + 0.045 * Math.sin(beatTime/450) * Math.exp(-0.0000);
+  const beatPulse = 1 + 0.05 * Math.max(0, Math.sin(beatTime/900));
+
+  for(let i=0;i<particles.length;i++){
+    const p = particles[i];
+    const target = getTarget(p, cx, cy, scale * beat, false);
+
+    if(assembleT < 1){
+      p.x += (target.x - p.x) * (0.045 + eased*0.03);
+      p.y += (target.y - p.y) * (0.045 + eased*0.03);
+    } else {
+      // gentle idle float + heartbeat scale
+      const floatX = Math.sin(beatTime/1800 + p.phase) * 1.2;
+      const floatY = Math.cos(beatTime/2200 + p.phase) * 1.2;
+      const tx = target.x + floatX;
+      const ty = target.y + floatY;
+      p.x += (tx - p.x) * 0.06;
+      p.y += (ty - p.y) * 0.06;
+    }
+
+    // ripple bursts from taps
+    for(const b of burstPulses){
+      const dx = p.x - b.x, dy = p.y - b.y;
+      const dist = Math.sqrt(dx*dx+dy*dy) || 1;
+      const age = now - b.start;
+      const ringR = age * 0.5;
+      const diff = Math.abs(dist - ringR);
+      if(diff < 40 && age < 900){
+        const force = (1 - diff/40) * (1 - age/900) * 3.2;
+        p.x += (dx/dist) * force;
+        p.y += (dy/dist) * force;
+      }
+    }
+
+    ctx.beginPath();
+    const alpha = assembleT < 1 ? 0.55 + eased*0.45 : 0.9;
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = alpha;
+    ctx.arc(p.x, p.y, p.size * (assembleT<1 ? (0.6+eased*0.4) : 1), 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  burstPulses = burstPulses.filter(b => now - b.start < 900);
+
+  requestAnimationFrame(animate);
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  burstPulses.push({x:e.clientX, y:e.clientY, start:performance.now()});
+});
+
+requestAnimationFrame(animate);
+</script>
+
+</body>
+</html>
