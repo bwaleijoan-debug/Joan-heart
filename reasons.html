@@ -1,0 +1,54 @@
+"You remember the small things I mention once, weeks later.",
+  "You make ordinary days feel like they matter.",
+  "The way you say my name when you're about to tease me.",
+  "You're honest with me, even when it's the harder thing to be.",
+  "You make space for me to be exactly as I am, no editing required.",
+  "The quiet moments with you feel just as good as the exciting ones.",
+  "You notice when something's off before I've said a word.",
+  "You choose me, again, on the ordinary days too.",
+  "Your hugs feel like a place I can put everything down.",
+  "You make me want to be better, without ever making me feel not good enough.",
+  "Simply put — you. All of it, still."
+];
+
+const grid = document.getElementById('grid');
+const progress = document.getElementById('progress');
+const footerNote = document.getElementById('footerNote');
+let revealedCount = 0;
+
+reasons.forEach((text, i) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = 
+    <div class="card-inner">
+      <div class="face front">
+        <svg class="heart-mark" viewBox="0 0 32 29" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 28S2 19 2 9.5C2 4.8 5.8 1 10.5 1 13 1 15 2.2 16 4c1-1.8 3-3 5.5-3C26.2 1 30 4.8 30 9.5 30 19 16 28 16 28Z" fill="#ffd166"/>
+        </svg>
+        <div class="num">${i + 1}</div>
+        <div class="tap-hint">tap to reveal</div>
+      </div>
+      <div class="face back">${text}</div>
+    </div>
+  ;
+  card.addEventListener('click', () => {
+    if(!card.classList.contains('flipped')){
+      card.classList.add('flipped');
+      revealedCount++;
+      progress.textContent = ${revealedCount} of ${reasons.length} revealed;
+      if(revealedCount === reasons.length){
+        footerNote.classList.add('show');
+      }
+    } else {
+      card.classList.remove('flipped');
+      revealedCount--;
+      progress.textContent = ${revealedCount} of ${reasons.length} revealed;
+      footerNote.classList.remove('show');
+    }
+  });
+  grid.appendChild(card);
+});
+</script>
+
+</body>
+</html>
