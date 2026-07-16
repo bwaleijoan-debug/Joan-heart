@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>reasons, for japhet</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,600&family=Jost:wght@300;400;500&display=swap');
+
+  :root{
+    --bg-1:#241220;
+    --bg-2:#3a1a2e;
+    --pink:#ff6f91;
+    --gold:#ffd166;
+    --cream:#fdf3ea;
+    --dim:#c9a9b8;
+    --card-front: linear-gradient(150deg, #3a1a2e, #2a1622);
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0;
+    min-height:100%;
+    background: radial-gradient(ellipse at 50% 20%, var(--bg-2), var(--bg-1) 75%);
+    font-family:'Jost', sans-serif;
+    color:var(--cream);
+  }
+
+  .wrap{
+    max-width:900px;
+    margin:0 auto;
+    padding:56px 24px 80px;
+  }
+
+  header{
+    text-align:center;
+    margin-bottom:40px;
+  }
+
+  .eyebrow{
+    letter-spacing:0.22em;
+    text-transform:uppercase;
+    font-size:0.72rem;
+    color:var(--dim);
+    margin-bottom:10px;
+  }
+
+  h1{
+    font-family:'Playfair Display', serif;
+    font-weight:700;
+    font-style:italic;
+    font-size:clamp(1.9rem, 5vw, 3rem);
+    margin:0 0 12px;
+    color:var(--gold);
+  }
+
+  .sub{
+    color:var(--dim);
+    font-size:0.95rem;
+    max-width:460px;
+    margin:0 auto;
+  }
+
+  .progress{
+    text-align:center;
+    margin:28px 0 8px;
+    font-size:0.78rem;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--dim);
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
+    gap:18px;
+    margin-top:20px;
+  }
+
+  .card{
+    perspective:1200px;
+    height:190px;
+    cursor:pointer;
+  }
+
+  .card-inner{
+    position:relative;
+    width:100%;
+    height:100%;
+    transition:transform 0.6s cubic-bezier(.4,.2,.2,1);
+    transform-style:preserve-3d;
+  }
+
+  .card.flipped .card-inner{
+    transform:rotateY(180deg);
+  }
+
+  .face{
+    position:absolute;
+    inset:0;
+    backface-visibility:hidden;
+    border-radius:14px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+    text-align:center;
+  }
+
+  .front{
+    background:var(--card-front);
+    border:1px solid rgba(255,209,102,0.18);
+    flex-direction:column;
+    gap:10px;
+  }
+
+  .front .num{
+    font-family:'Playfair Display', serif;
+    font-style:italic;
+    font-size:1.6rem;
+    color:var(--gold);
+    opacity:0.85;
+  }
+
+  .front .heart-mark{
+    width:20px;
+    height:20px;
+    opacity:0.55;
+  }
+
+  .front .tap-hint{
+    font-size:0.65rem;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--dim);
+  }
+
+  .back{
+    background:linear-gradient(150deg, var(--pink), #e85a7a);
+    color:#2a1017;
+    transform:rotateY(180deg);
+    font-family:'Playfair Display', serif;
+    font-weight:500;
+    font-size:1.02rem;
+    line-height:1.4;
+  }
+
+  .footer-note{
+    text-align:center;
+    margin-top:48px;
+    color:var(--dim);
+    font-size:0.85rem;
+    opacity:0;
+    transition:opacity 0.8s ease;
+  }
+
+  .footer-note.show{
+    opacity:1;
+  }
+
+  .footer-note em{
+    font-family:'Playfair Display', serif;
+    font-style:italic;
+    color:var(--gold);
+    font-size:1.05rem;
+  }
+
+  @media (max-width: 480px){
+    .card{ height:150px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">a small deck</div>
+    <h1>some reasons, japhet</h1>
+    <p class="sub">Tap a card to reveal one. There's no right order — just twelve small truths.</p>
+  </header>
+
+  <div class="progress" id="progress">0 of 12 revealed</div>
+
+  <div class="grid" id="grid"></div>
+
+  <p class="footer-note" id="footerNote">Every one of these is still true tomorrow — <em>and the day after that.</em></p>
+</div>
+
+<script>
+const reasons = [
+  "The way you laugh at your own jokes before you even finish telling them.",
+  "You remember the small things I mention once, weeks later.",
+  "You make ordinary days feel like they matter.",
+  "The way you say my name when you're about to tease me.",
+  "You're honest with me, even when it's the harder thing to be.",
+  "You make space for me to be exactly as I am, no editing required.",
+  "The quiet moments with you feel just as good as the exciting ones.",
+  "You notice when something's off before I've said a word.",
+  "You choose me, again, on the ordinary days too.",
+  "Your hugs feel like a place I can put everything down.",
+  "You make me want to be better, without ever making me feel not good enough.",
+  "Simply put — you. All of it, still."
+];
+
+const grid = document.getElementById('grid');
+const progress = document.getElementById('progress');
+const footerNote = document.getElementById('footerNote');
+let revealedCount = 0;
+
+reasons.forEach((text, i) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="card-inner">
+      <div class="face front">
+        <svg class="heart-mark" viewBox="0 0 32 29" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 28S2 19 2 9.5C2 4.8 5.8 1 10.5 1 13 1 15 2.2 16 4c1-1.8 3-3 5.5-3C26.2 1 30 4.8 30 9.5 30 19 16 28 16 28Z" fill="#ffd166"/>
+        </svg>
+        <div class="num">${i + 1}</div>
+        <div class="tap-hint">tap to reveal</div>
+      </div>
+      <div class="face back">${text}</div>
+    </div>
+  `;
+  card.addEventListener('click', () => {
+    if(!card.classList.contains('flipped')){
+      card.classList.add('flipped');
+      revealedCount++;
+      progress.textContent = `${revealedCount} of ${reasons.length} revealed`;
+      if(revealedCount === reasons.length){
+        footerNote.classList.add('show');
+      }
+    } else {
+      card.classList.remove('flipped');
+      revealedCount--;
+      progress.textContent = `${revealedCount} of ${reasons.length} revealed`;
+      footerNote.classList.remove('show');
+    }
+  });
+  grid.appendChild(card);
+});
+</script>
+
+</body>
+</html>
